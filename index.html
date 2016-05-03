@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head lang="pl">
+    <meta charset="UTF-8">
+    <title>Laboratorium 3 - interaktywny terminarz</title>
+
+    <!-- jquery: http://jquery.com/-->
+    <script src="https://code.jquery.com/jquery-1.12.3.js" type="text/javascript"></script>
+
+    <!-- data tables: datatables.net -->
+    <script src="https://cdn.datatables.net/1.10.11/js/jquery.dataTables.min.js" type="text/javascript"></script>
+    <link href="https://cdn.datatables.net/1.10.11/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css"/>
+
+    <!-- time picker: http://xdsoft.net/jqplugins/datetimepicker/-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.4.1/jquery.datetimepicker.min.js" type="text/javascript"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.4.1/jquery.datetimepicker.min.css" rel="stylesheet" type="text/css"/>
+
+    <!-- (time picker dependency) jquery-ui: https://jqueryui.com/ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js" type="text/javascript"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.css" rel="stylesheet" type="text/css"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.theme.min.css" rel="stylesheet" type="text/css"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.structure.min.css" rel="stylesheet" type="text/css"/>
+
+    <!-- YDN: Javascript database library for IndexedDB http://dev.yathit.com/ydn-db/index.html -->
+    <script src="https://cdn.jsdelivr.net/ydn.db/0.9.2/ydn.db-isw-core-qry-dev.js" type="text/javascript"></script>
+
+    <!-- js-hacks: map implementation: http://stackoverflow.com/questions/368280/javascript-hashmap-equivalent -->
+    <script src="map.js" type="text/javascript"></script>
+
+    <!-- datejs, more complex date: https://code.google.com/p/datejs/ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datejs/1.0/date.min.js" type="text/javascript"></script>
+
+    <!-- toogle switch: http://php.quicoto.com/toggle-switches-using-input-radio-and-css3/ -->
+    <link href="toogleswitch.css" rel="stylesheet" type="text/css"/>
+
+    <!-- own -->
+    <link href="theme.css" rel="stylesheet" type="text/css"/>
+    <script src="script.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="container">
+    <h2>Interaktywny terminarz</h2>
+
+    <div class="config">
+        <span>Tryb powiadomień:</span>
+
+        <div class="switch">
+            <input type="radio" class="switch-input" name="mode" value="alert" id="alert" checked="checked">
+            <label for="alert" class="switch-label switch-label-off">Alert</label>
+            <input type="radio" class="switch-input" name="mode" value="notification" id="notification">
+            <label for="notification" class="switch-label switch-label-on">Notification</label>
+            <span class="switch-selection"></span>
+        </div>
+    </div>
+    <table id="timetable">
+        <thead>
+        <tr>
+            <th class="size1">Tytuł</th>
+            <th class="size1">Opis</th>
+            <th class="size1">Czas rozpoczęcia</th>
+            <th class="size1">Kiedy przypomnieć?</th>
+            <th class="size2">&nbsp;</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr id="rowTemplate">
+            <td class="size1"><span class="span title"></span></td>
+            <td class="size1"><span class="span description"></span></td>
+            <td class="size1"><span class="span starttime"></span></td>
+            <td class="size1"><span class="span remindertime"></span></td>
+            <td class="size2"><a href="#" class="button delButton">USUŃ</a></td>
+        </tr>
+    </table>
+    <div class="action">
+        <a href="#" class="button" id="saveButton">ZAPISZ</a>
+        <a href="#" class="button" id="addButton">DODAJ</a>
+    </div>
+    <div id="about">
+        <b>About, czyli ważne informacje na temat terminarza:</b><br/>
+        <br/>
+        Terminarz oferuje dwa tryby powiadomień, Alert i Web Notification, przy czym<br/>
+        - Alert działa wszędzie,<br/>
+        - Web Notification jest zaimplementowane tylko w Firefox i Chrome,<br/>
+        - Web Notification <a
+            href="http://stackoverflow.com/questions/5040107/webkit-notifications-requestpermission-function-doesnt-work">nie
+        działa</a> w Chrome dla plików lokalnych (bez serwera).<br/>
+        <br/>
+        Terminarz wykorzystuje Indexed DB przy czym:<br/>
+        - IDB <a
+            href="https://www.google.pl/search?q=Indexed+DB+is+only+available+on+websites+with+http+or+https+URL+schemes.">nie
+        działa</a> w Internet Explorer dla plików lokalnych (bes serwera).
+    </div>
+    <div id="dialog-message-success" class="dialog" title="Zapis zdarzeń">
+        <p>Z <b>powodzeniem</b> zapisano zdarzenia.</p>
+    </div>
+    <div id="dialog-message-error" class="dialog" title="Zapis zdarzeń">
+        <p>Zmiany nie zostały zapisane z powodu <b>błędów danych</b>.<br/>
+            Proszę poprawić zdarzenia zaznaczone na czerwono.</p>
+
+        <p>
+            <b>Proszę zwrócić uwagę, iż:</b><br/>
+            - wszystkie pola są wymagane,<br/>
+            - wskazana data musi być późniejsza niż aktualna,<br/>
+            - wskazana data, powiększona o czas przypomnienia, musi być późniejsza niż aktualna.
+        </p>
+    </div>
+    <div id="dialog-message-notification-awaiting-permission" class="dialog" title="Oczekiwanie">
+        <p>
+            Terminarz <b>oczekuje</b> na zdefiniowanie uprawnień<br/>
+            do wyświetlenia Web Notification. Proszę wskazać<br/>
+            wybór uprawnienia w przeglądrce.<br/>
+            <br/>
+            Do poprawnego działania tego trybu wymagana jest zgoda.
+        </p>
+    </div>
+    <div id="dialog-message-notification-not-supported" class="dialog" title="Błąd wsparcia">
+        <p>
+            Wystąpił <b>błąd</b> z powodu braku wsparcia<br/>
+            Web Notification dla Twojej przeglądarki.<br/>
+            Nastąpiło wymuszenie trybu "Alert".
+        </p>
+    </div>
+    <div id="dialog-message-notification-denied" class="dialog" title="Błąd uprawnień">
+        <p>
+            Wystąpił <b>błąd</b> z powodu braku uprawnień<br/>
+            do wyświetlania Web Notification.<br/>
+            Nastąpiło wymuszenie trybu "Alert".
+        </p>
+    </div>
+    <div id="dialog-message-cannot-connect" class="dialog" title="Brak połączenia">
+        <p>
+            Wystąpił <b>błąd</b>, nie udało się zrealizować<br/>
+            połączenia z mechanizmem bazy danych.
+        </p>
+    </div>
+</div>
+</body>
+</html>
